@@ -43,10 +43,10 @@ export default class Network extends Adapter<[device: net.Socket]> {
     }).on("data", (buf) => {
       // eslint-disable-next-line no-console
       console.log("printer say:", buf);
-    }).connect(this.port, this.address, (err?: Error | null) => {
-      clearInterval(connection_timeout);
+    }).connect(this.port, this.address, () => {
+      clearTimeout(connection_timeout);
       this.emit("connect", this.device);
-      callback && callback(err ?? null, this.device);
+      callback && callback(null, this.device);
     });
     return this;
   }
@@ -67,7 +67,7 @@ export default class Network extends Adapter<[device: net.Socket]> {
   }
 
   read(callback?: (data: Buffer) => void) {
-    this.device.on("data", (buf) => {
+    this.device.once("data", (buf) => {
       if (callback) callback(buf);
     });
     return this;
