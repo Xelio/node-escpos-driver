@@ -1098,4 +1098,5 @@ export {
 export type {
   DeviceStatus,
   StatusClassConstructor,
+  StatusJSON,
 } from "./statuses";

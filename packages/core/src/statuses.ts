@@ -22,7 +22,7 @@ interface StatusJSONElementMultiple {
 
 type StatusJSONElement = StatusJSONElementSingle | StatusJSONElementMultiple;
 
-interface StatusJSON<T extends string> {
+export interface StatusJSON<T extends string> {
   className: T
   byte: number
   bits: string
