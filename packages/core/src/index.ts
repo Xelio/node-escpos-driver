@@ -1099,4 +1099,7 @@ export type {
   DeviceStatus,
   StatusClassConstructor,
   StatusJSON,
+  StatusJSONElement,
+  StatusJSONElementSingle,
+  StatusJSONElementMultiple,
 } from "./statuses";
