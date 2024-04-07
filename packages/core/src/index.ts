@@ -905,10 +905,23 @@ export class Printer<AdapterCloseArgs extends []> extends EventEmitter {
    * @return {Promise} promise returning given status
    */
   getStatus<T extends DeviceStatus>(StatusClass: StatusClassConstructor<T>): Promise<T> {
-    return new Promise<T>((resolve) => {
+    return new Promise<T>((resolve, reject) => {
       this.adapter.read((data: Buffer) => {
-        const byte = data.readInt8(0);
-        resolve(new StatusClass(byte));
+        try {
+          if(data.length === 0) {
+            return reject(new Error("Get status timeout"));
+          }
+          const byte = data.readInt8(0);
+          resolve(new StatusClass(byte));
+        } catch (err) {
+          if (typeof err === "string") {
+            console.error(err);
+            reject(new Error(err));
+          } else {
+            console.error(err);
+            reject(err);
+          }
+        }
       });
 
       this.adapter.write(StatusClass.commands().join(''));
@@ -920,27 +933,26 @@ export class Printer<AdapterCloseArgs extends []> extends EventEmitter {
    * @return {Promise}
    */
   getStatuses(): Promise<DeviceStatus[]> {
-    return new Promise<DeviceStatus[]> (async (resolveAll) => {
+    return new Promise<DeviceStatus[]> (async (resolve, reject) => {
       const results:DeviceStatus[] = [];
-      const statusClasses = [PrinterStatus, RollPaperSensorStatus, OfflineCauseStatus, ErrorCauseStatus];
-      for (let i = 0; i < statusClasses.length; i++) {
-        const statusClass = statusClasses[i];
+
+      try {
+        results.push(await this.getStatus(PrinterStatus));
+        results.push(await this.getStatus(RollPaperSensorStatus));
+        results.push(await this.getStatus(OfflineCauseStatus));
+        results.push(await this.getStatus(ErrorCauseStatus));
   
-        const query = new Promise<DeviceStatus>((resolve) => {
-          this.adapter.read((data: Buffer) => {
-            const byte = data.readInt8(0);
-            resolve(new statusClass(byte));
-          });
-  
-          this.adapter.write(statusClass.commands().join(''));
-        });
-  
-        const result = await query;
-        results.push(result);
+        resolve(results);
+      } catch (err) {
+        if (typeof err === "string") {
+          console.error(err);
+          reject(new Error(err));
+        } else {
+          console.error(err);
+          reject(err);
+        }
       }
-      resolveAll(results);
     });
-    
   }
 
   /****************************
