@@ -1,10 +1,76 @@
-import { describe, expect, it } from 'vitest'
-import { splitForCode128, genCode128forXprinter } from '../src/utils';
+import { describe, expect, it, vi } from 'vitest'
+import { splitForCode128, genCode128forXprinter } from '../src/utils'; 
+import { Adapter } from '@node-escpos/adapter';
+import { Printer, PrinterStatus } from '../src';
+
+class MockAdapter extends Adapter<[]> {
+  open = vi.fn()
+  write = vi.fn()
+  close = vi.fn()
+  read = vi.fn()
+}
 
 describe('should', () => {
+
   it('exported', () => {
     expect(1).toEqual(1)
   });
+
+  it('adapter receive correct data from getStatus', async () => {
+    let dataWrote = "";
+
+    const adapter = new MockAdapter();
+    adapter.read.mockImplementation((callback?: (data: Buffer) => void) => {
+      if (callback) callback(Buffer.from('\x16'));
+    });
+    adapter.write.mockImplementation((data: string | Buffer, callback?: (error: Error | null) => void) => {
+      dataWrote = data.toString();
+    });
+
+    const printer = new Printer(adapter, {})
+    const printerStatus = await printer.getStatus(PrinterStatus);
+
+    expect(adapter.write).toHaveBeenCalledOnce();
+
+    expect(dataWrote).toEqual(PrinterStatus.commands().join(''))
+  })
+
+  it('data return from adapter can create correct status', async () => {
+    const adapter = new MockAdapter();
+    adapter.read.mockImplementation((callback?: (data: Buffer) => void) => {
+      if (callback) callback(Buffer.from('\x16'));
+    });
+
+    const printer = new Printer(adapter, {})
+    const printerStatus = await printer.getStatus(PrinterStatus);
+
+    expect(adapter.read).toHaveBeenCalledOnce();
+
+    expect(printerStatus.byte).toEqual(22);
+  })
+
+  it('getStatus throw error when receive empty buffer from adapter', async () => {
+    let receivedError: Error | null = null;
+
+    const adapter = new MockAdapter();
+    adapter.read.mockImplementation((callback?: (data: Buffer) => void) => {
+      if (callback) callback(Buffer.from(""));
+    });
+
+    const printer = new Printer(adapter, {})
+    try {
+      await printer.getStatus(PrinterStatus);
+    } catch (err) {
+      if (err instanceof Error) {
+        receivedError = err;
+      }
+    }
+
+    expect(adapter.write).toHaveBeenCalledOnce();
+    expect(adapter.read).toHaveBeenCalledOnce();
+    expect(receivedError).not.toBeNull();
+    expect(receivedError?.message).toEqual("Get status timeout");
+  })
 
   it('Split string to optimized blocks for CODE128 barcode', () => {
     const inputs: string[] = [];
